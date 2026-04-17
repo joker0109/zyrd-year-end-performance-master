@@ -98,7 +98,7 @@ CREATE TABLE vote_sessions (
     year INT NOT NULL COMMENT '评分年度',
     name VARCHAR(100) DEFAULT NULL COMMENT '批次名称',
     start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '开始时间',
-    end_time TIMESTAMP DEFAULT NULL COMMENT '截止时间',
+    end_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '截止时间',
     status TINYINT DEFAULT 1 COMMENT '状态：0未开始 1进行中 2已结束',
     is_calculated TINYINT DEFAULT 0 COMMENT '是否已计算：0否 1是',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
