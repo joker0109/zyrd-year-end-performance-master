@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Maven编译产物
+performance-api/target/
+
+# Qoder内部文件
+.qoder/
