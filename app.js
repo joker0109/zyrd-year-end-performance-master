@@ -3,6 +3,7 @@ let currentUser = null;
 let currentVotes = {};        // 当前编辑的评分
 let isSubmitted = false;      // 是否已提交
 let isAdmin = false;          // 是否是系统管理员
+let voteTargets = [];         // 从 API 获取的投票目标列表
 
 // 初始化
 function init() {
@@ -10,60 +11,77 @@ function init() {
 }
 
 // 登录
-function login() {
+async function login() {
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value.trim();
-    
-    if (!username) {
-        showToast('请输入用户名');
+
+    if (!username) { showToast('请输入用户名'); return; }
+    if (!password) { showToast('请输入密码'); return; }
+
+    // 调用后端登录接口
+    const loginBtn = document.querySelector('#page-login .btn-primary');
+    if (loginBtn) { loginBtn.disabled = true; loginBtn.textContent = '登录中...'; }
+
+    const resp = await apiLogin(username, password);
+
+    if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = '登录'; }
+
+    if (resp.code !== 200) {
+        showToast(resp.message || '登录失败');
         return;
     }
-    if (!password) {
-        showToast('请输入密码');
-        return;
+
+    const user = resp.data;
+    currentUser = {
+        id: user.employeeId,
+        name: user.name,
+        department: user.department,
+        level: user.level,
+        levelName: user.levelName,
+        employeeId: user.employeeId
+    };
+    isAdmin = user.isAdmin === true;
+    isSubmitted = user.isSubmitted === true;
+
+    // 如果已提交，回显投票数据
+    if (isSubmitted && user.myVotes) {
+        currentVotes = { ...user.myVotes };
+    } else {
+        currentVotes = {};
     }
-    
-    // 验证用户名密码
-    currentUser = employees.find(e => e.username === username && e.password === password);
-    if (!currentUser) {
-        showToast('用户名或密码错误');
-        return;
+
+    // 从 API 获取投票目标列表
+    const targetsResp = await apiGetVoteTargets(currentUser.id);
+    if (targetsResp.code === 200) {
+        voteTargets = targetsResp.data || [];
+    } else {
+        voteTargets = [];
     }
-    
-    // 检查是否是系统管理员
-    isAdmin = SYSTEM_ADMINS.includes(currentUser.id);
-    
-    // 董事长隐藏结果页签，韩雪显示结果页签
-    const showResultTab = isAdmin && currentUser.id !== 'E001';
-    
-    // 加载该用户的投票数据
-    const userVotes = getUserVotes(currentUser.id);
-    currentVotes = { ...userVotes };
-    isSubmitted = Object.keys(userVotes).length > 0;
-    
-    // 更新UI
+
+    // 更新 UI
     document.getElementById('current-user-name').textContent = currentUser.name;
     document.getElementById('current-user-avatar').textContent = currentUser.name.substring(0, 1);
-    
-    // 管理员显示结果页和统计页（董事长除外）
-    if (showResultTab) {
+
+    // 管理员显示结果页和统计页（可查看结果且非仅董事长）
+    if (user.canViewResult) {
         document.getElementById('nav-result').style.display = 'block';
+    }
+    if (user.canViewStats) {
         document.getElementById('nav-stats').style.display = 'block';
     }
-    
-    // 韩雪显示专属的投票详情页签
-    if (currentUser.id === 'E021') {
+    // 投票详情（韩雪专属）
+    if (user.canViewVoteDetail) {
         document.getElementById('nav-hanxue').style.display = 'block';
     }
-    
+
     // 切换页面
     document.getElementById('page-login').classList.remove('active');
     document.getElementById('page-main').classList.add('active');
-    
+
     // 渲染投票列表
     renderVoteList();
     updateProgress();
-    
+
     // 如果已提交，禁用所有操作
     if (isSubmitted) {
         disableAllGradeSelects();
@@ -74,22 +92,20 @@ function login() {
         submitBtn.style.background = '#27ae60';
         showToast('您已完成投票，无法再次修改');
     }
-    
+
     showToast(`欢迎，${currentUser.name}${isAdmin ? '（管理员）' : ''}`);
 }
 
 // 渲染投票列表
 function renderVoteList() {
-    const targets = getTargetsByLevel(currentUser.id, currentUser.level);
-    
-    // 经理层
-    renderPersonList('list-manager', targets.managers, 2);
-    
-    // 中层
-    renderPersonList('list-middle', targets.middle, 3);
-    
-    // 普通员工
-    renderPersonList('list-staff', targets.staff, 4);
+    // 使用从 API 获取的 voteTargets，按层级分组
+    const managers = voteTargets.filter(e => e.level === 2);
+    const middle = voteTargets.filter(e => e.level === 3);
+    const staff = voteTargets.filter(e => e.level === 4);
+
+    renderPersonList('list-manager', managers, 2);
+    renderPersonList('list-middle', middle, 3);
+    renderPersonList('list-staff', staff, 4);
 }
 
 // 渲染人员列表
@@ -152,50 +168,35 @@ function onGradeChange(select) {
 
 // 更新A票计数
 function updateACount(level) {
-    const targets = getTargetsByLevel(currentUser.id, currentUser.level);
-    let persons = [];
+    const persons = voteTargets.filter(e => e.level === level);
     let elementId = '';
-    
-    if (level === 2) {
-        persons = targets.managers;
-        elementId = 'a-count-manager';
-    } else if (level === 3) {
-        persons = targets.middle;
-        elementId = 'a-count-middle';
-    } else if (level === 4) {
-        persons = targets.staff;
-        elementId = 'a-count-staff';
-    }
-    
+    if (level === 2) elementId = 'a-count-manager';
+    else if (level === 3) elementId = 'a-count-middle';
+    else if (level === 4) elementId = 'a-count-staff';
+
     let aCount = 0;
     persons.forEach(p => {
         if (currentVotes[p.id] === 'A') aCount++;
     });
-    
+
     const limit = A_LIMITS[level];
     const element = document.getElementById(elementId);
+    if (!element) return;
     element.textContent = `优秀票: ${aCount}/${limit}`;
-    
-    // 更新样式
     element.className = 'a-count';
-    if (aCount > limit) {
-        element.classList.add('warning');
-    } else if (aCount === limit) {
-        element.classList.add('success');
-    }
+    if (aCount > limit) element.classList.add('warning');
+    else if (aCount === limit) element.classList.add('success');
 }
 
 // 更新进度
 function updateProgress() {
-    const targets = getVoteTargets(currentUser.id, currentUser.level);
-    const total = targets.length;
+    const total = voteTargets.length;
     const voted = Object.keys(currentVotes).length;
-    
+
     document.getElementById('voted-count').textContent = voted;
     document.getElementById('total-count').textContent = total;
-    document.getElementById('progress-fill').style.width = `${(voted / total) * 100}%`;
-    
-    // 更新所有A票计数
+    document.getElementById('progress-fill').style.width = total > 0 ? `${(voted / total) * 100}%` : '0%';
+
     updateACount(2);
     updateACount(3);
     updateACount(4);
@@ -203,33 +204,22 @@ function updateProgress() {
 
 // 检查提交是否有效
 function checkSubmitValid() {
-    const targets = getVoteTargets(currentUser.id, currentUser.level);
+    const total = voteTargets.length;
     const voted = Object.keys(currentVotes).length;
     const warningEl = document.getElementById('warning-msg');
     const submitBtn = document.getElementById('submit-btn');
-    
-    // 检查是否全部评分
-    if (voted < targets.length) {
-        warningEl.textContent = `还有 ${targets.length - voted} 人未评分，请完成所有评分`;
+
+    if (voted < total) {
+        warningEl.textContent = `还有 ${total - voted} 人未评分，请完成所有评分`;
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.5';
         return false;
     }
-    
-    // 检查A票是否超限
-    const targetsByLevel = getTargetsByLevel(currentUser.id, currentUser.level);
-    
+
     for (const level of [2, 3, 4]) {
-        let persons = [];
-        if (level === 2) persons = targetsByLevel.managers;
-        else if (level === 3) persons = targetsByLevel.middle;
-        else if (level === 4) persons = targetsByLevel.staff;
-        
+        const persons = voteTargets.filter(e => e.level === level);
         let aCount = 0;
-        persons.forEach(p => {
-            if (currentVotes[p.id] === 'A') aCount++;
-        });
-        
+        persons.forEach(p => { if (currentVotes[p.id] === 'A') aCount++; });
         if (aCount > A_LIMITS[level]) {
             warningEl.textContent = `${LEVEL_NAMES[level]}优秀票超出限制（最多${A_LIMITS[level]}票）`;
             submitBtn.disabled = true;
@@ -237,7 +227,7 @@ function checkSubmitValid() {
             return false;
         }
     }
-    
+
     warningEl.textContent = '';
     submitBtn.disabled = false;
     submitBtn.style.opacity = '1';
@@ -245,34 +235,34 @@ function checkSubmitValid() {
 }
 
 // 提交投票
-function submitVote() {
+async function submitVote() {
     if (!checkSubmitValid()) {
         showToast('请检查评分是否完整');
         return;
     }
-    
-    // 检查是否已提交过（每人只能提交一次）
+
     if (isSubmitted) {
         showToast('您已完成投票，无法再次修改');
         return;
     }
-    
-    // 模拟提交
-    isSubmitted = true;
-    
-    // 保存到mock数据
-    mockVotes[currentUser.id] = { ...currentVotes };
-    
-    // 禁用所有评分选择框
-    disableAllGradeSelects();
-    
-    // 更新按钮状态
+
     const submitBtn = document.getElementById('submit-btn');
-    submitBtn.textContent = '✓ 已提交';
     submitBtn.disabled = true;
+    submitBtn.textContent = '提交中...';
+
+    const resp = await apiSubmitVotes(currentUser.id, currentVotes);
+    if (resp.code !== 200) {
+        showToast(resp.message || '提交失败');
+        submitBtn.disabled = false;
+        submitBtn.textContent = '提交评分';
+        return;
+    }
+
+    isSubmitted = true;
+    disableAllGradeSelects();
+    submitBtn.textContent = '✓ 已提交';
     submitBtn.style.opacity = '0.5';
     submitBtn.style.background = '#27ae60';
-    
     showToast('评分提交成功！');
 }
 
@@ -314,55 +304,96 @@ function switchTab(tab) {
 }
 
 // 渲染结果页
-function renderResult() {
-    // 获取当前用户的评分结果
-    let result = getUserResult(currentUser.id);
-    
-    // 如果没有预置结果，模拟计算一个
-    if (!result) {
-        result = calculateScore(currentUser.id, mockVotes);
+async function renderResult() {
+    const container = document.getElementById('result-content');
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">加载中...</div>';
+
+    const resp = await apiGetResult(currentUser.id);
+    if (resp.code !== 200) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📊</div><p>${resp.message || '暂无评分数据'}</p></div>`;
+        return;
     }
-    
-    if (!result) {
-        document.getElementById('result-content').innerHTML = `
+
+    const result = resp.data;
+
+    // 若总分为 0 或结果不存在，说明结果尚未生成
+    if (!result || !result.totalScore || result.totalScore === 0) {
+        container.innerHTML = `
             <div class="empty-state">
-                <div class="empty-state-icon">📊</div>
-                <p>暂无评分数据</p>
+                <div class="empty-state-icon">⏳</div>
+                <p style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 8px;">结果未生成</p>
+                <p style="font-size: 13px; color: #999;">评分结果将在所有人完成投票后统一公布</p>
             </div>
         `;
         return;
     }
-    
-    // 显示总分和等级
-    document.getElementById('result-total').textContent = result.totalScore;
-    document.getElementById('result-grade').textContent = `${GRADE_CONFIG[result.finalGrade].name}(${result.finalGrade})`;
-    
-    // 渲染详情表格
-    const detailBody = document.getElementById('result-detail');
-    detailBody.innerHTML = `
-        <tr>
-            <td>领导评分(40%)</td>
-            <td>${result.leaderVotes.A}</td>
-            <td>${result.leaderVotes.B}</td>
-            <td>${(result.gradeScores.A * 0.4 + result.gradeScores.B * 0.4).toFixed(1)}</td>
-        </tr>
-        <tr>
-            <td>员工互评(60%)</td>
-            <td>${result.staffVotes.A}</td>
-            <td>${result.staffVotes.B}</td>
-            <td>${(result.gradeScores.A * 0.6 + result.gradeScores.B * 0.6).toFixed(1)}</td>
-        </tr>
+    const lv = result.leaderVotes;
+    const sv = result.staffVotes;
+    const gs = result.gradeScores || {};
+    const gradeName = GRADE_CONFIG[result.finalGrade] ? GRADE_CONFIG[result.finalGrade].name : result.finalGradeName;
+
+    // 重建结果页完整 HTML
+    container.innerHTML = `
+        <div class="result-score">
+            <div class="score-value">${result.totalScore}</div>
+            <div class="score-grade">${gradeName}(${result.finalGrade})</div>
+        </div>
+        <div class="vote-section">
+            <div class="section-header">
+                <div class="section-title">评分详情</div>
+            </div>
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>评分来源</th>
+                        <th>A票数</th>
+                        <th>B票数</th>
+                        <th>得分</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>领导评分(40%)</td>
+                        <td>${lv.A || 0}</td>
+                        <td>${lv.B || 0}</td>
+                        <td>${((gs.A || 0) * 0.4 + (gs.B || 0) * 0.4).toFixed(1)}</td>
+                    </tr>
+                    <tr>
+                        <td>员工互评(60%)</td>
+                        <td>${sv.A || 0}</td>
+                        <td>${sv.B || 0}</td>
+                        <td>${((gs.A || 0) * 0.6 + (gs.B || 0) * 0.6).toFixed(1)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="vote-section">
+            <div class="section-header">
+                <div class="section-title">各等级得分分布</div>
+            </div>
+            <div id="grade-distribution"></div>
+        </div>
+        <div class="vote-section">
+            <div class="section-header">
+                <div class="section-title">详细票数统计</div>
+            </div>
+            <div style="font-size: 14px; line-height: 2; color: #666;">
+                <p><strong>领导评分：</strong>A=${lv.A || 0}, B=${lv.B || 0}, C=${lv.C || 0}, D=${lv.D || 0}（共${lv.total || 0}票）</p>
+                <p><strong>员工评分：</strong>A=${sv.A || 0}, B=${sv.B || 0}, C=${sv.C || 0}, D=${sv.D || 0}（共${sv.total || 0}票）</p>
+            </div>
+        </div>
     `;
-    
-    // 渲染等级分布
-    const distributionEl = document.getElementById('grade-distribution');
-    const maxScore = Math.max(...Object.values(result.gradeScores));
-    distributionEl.innerHTML = Object.entries(result.gradeScores).map(([grade, score]) => {
-        const width = maxScore > 0 ? (score / maxScore) * 100 : 0;
+
+    // 渲染等级分布进度条
+    const maxScore = Math.max(...Object.values(gs).map(Number), 0.01);
+    document.getElementById('grade-distribution').innerHTML = ['A', 'B', 'C', 'D'].map(grade => {
+        const score = gs[grade] || 0;
+        const width = (score / maxScore) * 100;
+        const name = GRADE_CONFIG[grade] ? GRADE_CONFIG[grade].name : grade;
         return `
             <div style="margin-bottom: 12px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 14px;">
-                    <span><span class="badge badge-${grade.toLowerCase()}">${grade}</span> ${GRADE_CONFIG[grade].name}</span>
+                    <span><span class="badge badge-${grade.toLowerCase()}">${grade}</span> ${name}</span>
                     <span style="font-weight: 600;">${score}分</span>
                 </div>
                 <div class="progress-bar" style="height: 8px;">
@@ -371,65 +402,73 @@ function renderResult() {
             </div>
         `;
     }).join('');
-    
-    // 渲染详细票数
-    document.getElementById('vote-detail-stats').innerHTML = `
-        <p><strong>领导评分：</strong>A=${result.leaderVotes.A}, B=${result.leaderVotes.B}, C=${result.leaderVotes.C}, D=${result.leaderVotes.D}（共${result.leaderVotes.total}票）</p>
-        <p><strong>员工评分：</strong>A=${result.staffVotes.A}, B=${result.staffVotes.B}, C=${result.staffVotes.C}, D=${result.staffVotes.D}（共${result.staffVotes.total}票）</p>
-    `;
 }
 
 // 渲染统计页
-function renderStats() {
-    // 统计参评人数
-    const targets = employees.filter(e => e.level !== 1);
-    const votedCount = Object.keys(mockVotes).length;
-    
-    document.getElementById('stat-total').textContent = targets.length;
-    document.getElementById('stat-voted').textContent = votedCount;
-    
-    // 统计各等级人数
-    let aCount = 0, bCount = 0, cCount = 0, dCount = 0;
-    const scoreList = [];
-    
-    for (const emp of targets) {
-        const result = getUserResult(emp.id) || calculateScore(emp.id, mockVotes);
-        if (result) {
-            if (result.finalGrade === 'A') aCount++;
-            else if (result.finalGrade === 'B') bCount++;
-            else if (result.finalGrade === 'C') cCount++;
-            else if (result.finalGrade === 'D') dCount++;
-            
-            scoreList.push({
-                id: emp.id,
-                name: emp.name,
-                department: emp.department,
-                level: emp.level,
-                levelName: LEVEL_NAMES[emp.level],
-                score: result.totalScore,
-                grade: result.finalGrade
-            });
-        }
+async function renderStats() {
+    const statsContent = document.getElementById('stats-content');
+    statsContent.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">加载中...</div>';
+
+    const resp = await apiGetStatistics();
+
+    // 用与其他页面一致的 CSS 类重建统计内容
+    statsContent.innerHTML = `
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="number" id="stat-total">-</div>
+                <div class="label">参评总人数</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="stat-voted">-</div>
+                <div class="label">已提交评分</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="stat-a" style="color: #27ae60;">-</div>
+                <div class="label">优秀(A)</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="stat-b" style="color: #3498db;">-</div>
+                <div class="label">良好(B)</div>
+            </div>
+        </div>
+        <div class="vote-section">
+            <div class="section-header">
+                <div class="section-title">全员评级分布</div>
+            </div>
+            <div id="company-distribution"></div>
+        </div>
+        <div class="vote-section">
+            <div class="section-header">
+                <div class="section-title">全员得分排名</div>
+            </div>
+            <div id="score-ranking" style="overflow-x: auto;"></div>
+        </div>
+    `;
+
+    if (resp.code !== 200) {
+        document.getElementById('score-ranking').innerHTML =
+            `<div class="empty-state"><div class="empty-state-icon">📊</div><p>${resp.message || '暂无数据'}</p></div>`;
+        return;
     }
-    
-    document.getElementById('stat-a').textContent = aCount;
-    document.getElementById('stat-b').textContent = bCount;
-    
-    // 渲染公司分布
+
+    const stats = resp.data;
+    document.getElementById('stat-total').textContent = stats.totalCount || 0;
+    document.getElementById('stat-voted').textContent = stats.votedCount || 0;
+    document.getElementById('stat-a').textContent = stats.aCount || 0;
+    document.getElementById('stat-b').textContent = stats.bCount || 0;
+
+    const gradeCountMap = { A: stats.aCount || 0, B: stats.bCount || 0, C: stats.cCount || 0, D: stats.dCount || 0 };
+    const totalPeople = stats.totalCount || 1;
     const distributionEl = document.getElementById('company-distribution');
-    const total = targets.length || 1;
     distributionEl.innerHTML = ['A', 'B', 'C', 'D'].map(grade => {
-        let count = 0;
-        if (grade === 'A') count = aCount;
-        else if (grade === 'B') count = bCount;
-        else if (grade === 'C') count = cCount;
-        else if (grade === 'D') count = dCount;
-        const width = (count / total) * 100;
+        const count = gradeCountMap[grade] || 0;
+        const width = (count / totalPeople) * 100;
+        const name = GRADE_CONFIG[grade] ? GRADE_CONFIG[grade].name : grade;
         return `
             <div style="margin-bottom: 12px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 14px;">
-                    <span><span class="badge badge-${grade.toLowerCase()}">${grade}</span> ${GRADE_CONFIG[grade].name}</span>
-                    <span style="font-weight: 600;">${count}人 (${(count/total*100).toFixed(1)}%)</span>
+                    <span><span class="badge badge-${grade.toLowerCase()}">${grade}</span> ${name}</span>
+                    <span style="font-weight: 600; color: #333;">${count}人 (${(count / totalPeople * 100).toFixed(1)}%)</span>
                 </div>
                 <div class="progress-bar" style="height: 8px;">
                     <div class="progress-fill" style="width: ${width}%"></div>
@@ -437,32 +476,37 @@ function renderStats() {
             </div>
         `;
     }).join('');
-    
-    // 渲染得分排名
-    scoreList.sort((a, b) => b.score - a.score);
+
+    const scoreList = stats.scoreRanking || [];
     const rankingEl = document.getElementById('score-ranking');
+    if (scoreList.length === 0) {
+        rankingEl.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📋</div><p>暂无排名数据</p></div>`;
+        return;
+    }
     rankingEl.innerHTML = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <table class="detail-table">
             <thead>
-                <tr style="background: #f5f5f5;">
-                    <th style="padding: 12px; text-align: center;">排名</th>
-                    <th style="padding: 12px; text-align: left;">姓名</th>
-                    <th style="padding: 12px; text-align: left;">部门</th>
-                    <th style="padding: 12px; text-align: center;">层级</th>
-                    <th style="padding: 12px; text-align: center;">得分</th>
-                    <th style="padding: 12px; text-align: center;">评级</th>
+                <tr>
+                    <th style="text-align: center; width: 48px;">排名</th>
+                    <th>姓名</th>
+                    <th>部门</th>
+                    <th style="text-align: center;">层级</th>
+                    <th style="text-align: center;">得分</th>
+                    <th style="text-align: center;">评级</th>
                 </tr>
             </thead>
             <tbody>
                 ${scoreList.map((item, index) => `
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 12px; text-align: center; font-weight: 600;">${index + 1}</td>
-                        <td style="padding: 12px;">${item.name}</td>
-                        <td style="padding: 12px; color: #666;">${item.department}</td>
-                        <td style="padding: 12px; text-align: center;">${item.levelName}</td>
-                        <td style="padding: 12px; text-align: center; font-weight: 600;">${item.score.toFixed(1)}</td>
-                        <td style="padding: 12px; text-align: center;">
-                            <span class="badge badge-${item.grade.toLowerCase()}">${item.grade}</span>
+                    <tr>
+                        <td style="text-align: center; font-weight: 700; color: ${index < 3 ? '#667eea' : '#333'};">${
+                            index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1
+                        }</td>
+                        <td style="font-weight: 500;">${item.name}</td>
+                        <td style="color: #999;">${item.department}</td>
+                        <td style="text-align: center; color: #999;">${item.levelName}</td>
+                        <td style="text-align: center; font-weight: 700; color: #333;">${(item.score || 0).toFixed(1)}</td>
+                        <td style="text-align: center;">
+                            <span class="badge badge-${(item.grade || 'd').toLowerCase()}">${item.gradeName || item.grade || '-'}</span>
                         </td>
                     </tr>
                 `).join('')}
@@ -472,12 +516,24 @@ function renderStats() {
 }
 
 // 渲染韩雪专属的投票详情页面
-function renderHanxueVoteDetail() {
+async function renderHanxueVoteDetail() {
     const detailEl = document.getElementById('all-votes-detail');
-    const voters = employees.filter(e => e.level !== 1); // 所有参与投票的人
-    const targets = employees.filter(e => e.level !== 1); // 所有被投票的人
-    
-    // 构建表格：行为被投票人，列为投票人
+    detailEl.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">加载中...</div>';
+
+    const resp = await apiGetVoteDetail();
+    if (resp.code !== 200) {
+        detailEl.innerHTML = `<p style="text-align:center;color:#999;padding:40px;">${resp.message || '暂无数据'}</p>`;
+        return;
+    }
+
+    const detail = resp.data;
+    const voters = detail.voters || [];
+    const targets = detail.targets || [];
+    const votesMatrix = detail.votes || {};
+    const results = detail.results || {};
+
+    const GRADE_DISPLAY = { A: { cls: 'badge-a', text: '优秀' }, B: { cls: 'badge-b', text: '良好' }, C: { cls: 'badge-c', text: '合格' }, D: { cls: 'badge-d', text: '不合格' } };
+
     let html = `<table style="width: 100%; border-collapse: collapse; font-size: 12px;">
         <thead>
             <tr style="background: #f5f5f5;">
@@ -488,39 +544,32 @@ function renderHanxueVoteDetail() {
             </tr>
         </thead>
         <tbody>`;
-    
+
     for (const target of targets) {
-        const result = getUserResult(target.id) || calculateScore(target.id, mockVotes);
+        const res = results[target.id];
         html += `<tr style="border-bottom: 1px solid #eee;">`;
-        html += `<td style="padding: 10px; font-weight: 600; position: sticky; left: 0; background: white;">${target.name}<br><span style="font-size: 11px; color: #999;">${LEVEL_NAMES[target.level]}</span></td>`;
-        
+        html += `<td style="padding: 10px; font-weight: 600; position: sticky; left: 0; background: white;">${target.name}<br><span style="font-size: 11px; color: #999;">${target.levelName}</span></td>`;
+
         for (const voter of voters) {
-            const votes = mockVotes[voter.id] || {};
-            const grade = votes[target.id] || '-';
-            let gradeClass = '';
-            let displayText = grade;
-            if (grade === 'A') { gradeClass = 'badge-a'; displayText = '优秀'; }
-            else if (grade === 'B') { gradeClass = 'badge-b'; displayText = '良好'; }
-            else if (grade === 'C') { gradeClass = 'badge-c'; displayText = '合格'; }
-            else if (grade === 'D') { gradeClass = 'badge-d'; displayText = '不合格'; }
-            
-            if (grade !== '-') {
-                html += `<td style="padding: 8px; text-align: center;"><span class="badge ${gradeClass}" style="font-size: 11px;">${displayText}</span></td>`;
+            const voterVotes = votesMatrix[voter.id] || {};
+            const grade = voterVotes[target.id] || '-';
+            const gd = GRADE_DISPLAY[grade];
+            if (gd) {
+                html += `<td style="padding: 8px; text-align: center;"><span class="badge ${gd.cls}" style="font-size: 11px;">${gd.text}</span></td>`;
             } else {
                 html += `<td style="padding: 8px; text-align: center; color: #ccc;">-</td>`;
             }
         }
-        
-        if (result) {
-            html += `<td style="padding: 8px; text-align: center; font-weight: 600;">${result.totalScore.toFixed(1)}</td>`;
-            html += `<td style="padding: 8px; text-align: center;"><span class="badge badge-${result.finalGrade.toLowerCase()}">${result.finalGrade}</span></td>`;
+
+        if (res) {
+            html += `<td style="padding: 8px; text-align: center; font-weight: 600;">${(res.score || 0).toFixed(1)}</td>`;
+            html += `<td style="padding: 8px; text-align: center;"><span class="badge badge-${(res.grade || 'd').toLowerCase()}">${res.grade || '-'}</span></td>`;
         } else {
-            html += `<td style="padding: 8px; text-align: center; color: #ccc;">-</td>`;
-            html += `<td style="padding: 8px; text-align: center; color: #ccc;">-</td>`;
+            html += `<td style="padding: 8px; text-align: center; color: #ccc;">-</td><td style="padding: 8px; text-align: center; color: #ccc;">-</td>`;
         }
         html += `</tr>`;
     }
-    
+
     html += `</tbody></table>`;
     detailEl.innerHTML = html;
 }
@@ -563,7 +612,7 @@ function closeChangePwdModal() {
 }
 
 // 提交修改密码
-function submitChangePassword() {
+async function submitChangePassword() {
     const oldPwd = document.getElementById('pwd-old').value.trim();
     const newPwd = document.getElementById('pwd-new').value.trim();
     const confirmPwd = document.getElementById('pwd-confirm').value.trim();
@@ -575,16 +624,11 @@ function submitChangePassword() {
     if (newPwd !== confirmPwd) { showToast('新密码与确认密码不一致'); return; }
     if (oldPwd === newPwd) { showToast('新密码不能与旧密码相同'); return; }
 
-    // 校验旧密码（前端模拟，实际项目中应调用后端接口）
-    if (oldPwd !== currentUser.password) {
-        showToast('旧密码错误');
+    const resp = await apiChangePassword(currentUser.employeeId, oldPwd, newPwd, confirmPwd);
+    if (resp.code !== 200) {
+        showToast(resp.message || '修改失败');
         return;
     }
-
-    // 更新内存中的密码（模拟）
-    currentUser.password = newPwd;
-    const emp = employees.find(e => e.id === currentUser.id);
-    if (emp) emp.password = newPwd;
 
     closeChangePwdModal();
     showToast('密码修改成功！');

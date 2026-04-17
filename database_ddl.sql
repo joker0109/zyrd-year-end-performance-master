@@ -28,6 +28,7 @@ CREATE TABLE employees (
     status TINYINT DEFAULT 1 COMMENT '状态：0离职 1在职',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    is_deleted TINYINT DEFAULT 0 COMMENT '是否删除：0否 1是',
     
     INDEX idx_level (level),
     INDEX idx_department (department),

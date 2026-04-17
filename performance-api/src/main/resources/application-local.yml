@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+spring:
+  # 禁用 Redis 和 Security 自动配置
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+
+  # MySQL 数据库
+  datasource:
+    url: jdbc:mysql://10.3.235.115:3306/performance_evaluation?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: "eD;pL&s%g3HR"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # 启动时自动执行补丁 SQL（补加缺失字段，字段已存在则跳过）
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db-migrate.sql
+      continue-on-error: true
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: isDeleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  mapper-locations: classpath*:/mapper/**/*.xml
