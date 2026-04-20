@@ -4,6 +4,9 @@ let currentVotes = {};        // 当前编辑的评分
 let isSubmitted = false;      // 是否已提交
 let isAdmin = false;          // 是否是系统管理员
 let voteTargets = [];         // 从 API 获取的投票目标列表
+let availableYears = [];      // 可用绩效年份列表（韩雪专属）
+let currentStatsYear = null;  // 统计页当前查询年份（null=默认当前绩效年）
+let currentDetailYear = null; // 投票详情页当前查询年份（null=默认当前绩效年）
 
 // 初始化
 function init() {
@@ -404,15 +407,39 @@ async function renderResult() {
     }).join('');
 }
 
-// 渲染统计页
-async function renderStats() {
+// 渲染统计页（韩雪专属，支持按年份查询）
+async function renderStats(year) {
+    if (year !== undefined) currentStatsYear = year;
+
     const statsContent = document.getElementById('stats-content');
     statsContent.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">加载中...</div>';
 
-    const resp = await apiGetStatistics();
+    // 加载可用年份（只加载一次）
+    if (isAdmin && availableYears.length === 0) {
+        const yearsResp = await apiGetAvailableYears();
+        if (yearsResp.code === 200 && yearsResp.data && yearsResp.data.length > 0) {
+            availableYears = yearsResp.data;
+            // 默认选中第一个年份
+            if (currentStatsYear === null) currentStatsYear = availableYears[0];
+        }
+    }
+
+    const resp = await apiGetStatistics(currentStatsYear);
+
+    // 年份选择器（仅管理员可见）
+    const yearSelectorHtml = isAdmin && availableYears.length > 0 ? `
+        <div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:10px;padding:12px 16px;background:#f0f2ff;border-radius:8px;margin-bottom:16px;">
+            <span style="font-size:14px;color:#667eea;font-weight:600;white-space:nowrap;">📅 绩效年份</span>
+            <select class="grade-select" style="width:auto;padding:6px 14px;font-size:14px;color:#333;"
+                onchange="renderStats(parseInt(this.value))">
+                ${availableYears.map(y => `<option value="${y}" ${currentStatsYear === y ? 'selected' : ''}>${y}年度绩效</option>`).join('')}
+            </select>
+            <span style="font-size:13px;color:#999;">${currentStatsYear ? `（${currentStatsYear}年度绩效评分结果）` : ''}</span>
+        </div>
+    ` : '';
 
     // 用与其他页面一致的 CSS 类重建统计内容
-    statsContent.innerHTML = `
+    statsContent.innerHTML = yearSelectorHtml + `
         <div class="stat-grid">
             <div class="stat-card">
                 <div class="number" id="stat-total">-</div>
@@ -515,12 +542,43 @@ async function renderStats() {
     `;
 }
 
-// 渲染韩雪专属的投票详情页面
-async function renderHanxueVoteDetail() {
+// 渲染韩雪专属的投票详情页面（支持按年份查询）
+async function renderHanxueVoteDetail(year) {
+    if (year !== undefined) currentDetailYear = year;
+
     const detailEl = document.getElementById('all-votes-detail');
     detailEl.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">加载中...</div>';
 
-    const resp = await apiGetVoteDetail();
+    // 加载可用年份（与统计页共用）
+    if (isAdmin && availableYears.length === 0) {
+        const yearsResp = await apiGetAvailableYears();
+        if (yearsResp.code === 200 && yearsResp.data && yearsResp.data.length > 0) {
+            availableYears = yearsResp.data;
+            if (currentDetailYear === null) currentDetailYear = availableYears[0];
+        }
+    } else if (currentDetailYear === null && availableYears.length > 0) {
+        currentDetailYear = availableYears[0];
+    }
+
+    const resp = await apiGetVoteDetail(currentDetailYear);
+
+    // 年份选择器注入到独立容器（在滚动表格之上方）
+    const selectorContainer = document.getElementById('year-selector-detail');
+    if (selectorContainer && isAdmin && availableYears.length > 0) {
+        selectorContainer.innerHTML = `
+            <div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:10px;padding:12px 16px;background:#f0f2ff;border-radius:8px;margin-bottom:12px;">
+                <span style="font-size:14px;color:#667eea;font-weight:600;white-space:nowrap;">📅 绩效年份</span>
+                <select class="grade-select" style="width:auto;padding:6px 14px;font-size:14px;color:#333;"
+                    onchange="renderHanxueVoteDetail(parseInt(this.value))">
+                    ${availableYears.map(y => `<option value="${y}" ${currentDetailYear === y ? 'selected' : ''}>${y}年度绩效</option>`).join('')}
+                </select>
+                <span style="font-size:13px;color:#999;">${currentDetailYear ? `（${currentDetailYear}年度投票详情）` : ''}</span>
+            </div>
+        `;
+    } else if (selectorContainer) {
+        selectorContainer.innerHTML = '';
+    }
+
     if (resp.code !== 200) {
         detailEl.innerHTML = `<p style="text-align:center;color:#999;padding:40px;">${resp.message || '暂无数据'}</p>`;
         return;

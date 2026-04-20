@@ -1,5 +1,6 @@
 package com.company.performance.vo;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import java.util.List;
@@ -15,12 +16,16 @@ public class StatisticsVO {
     /** 已提交投票人数 */
     private Integer votedCount;
     /** 优秀(A)人数 */
+    @JsonProperty("aCount")
     private Integer aCount;
     /** 良好(B)人数 */
+    @JsonProperty("bCount")
     private Integer bCount;
     /** 合格(C)人数 */
+    @JsonProperty("cCount")
     private Integer cCount;
     /** 不合格(D)人数 */
+    @JsonProperty("dCount")
     private Integer dCount;
 
     /** 得分排名列表（按得分降序） */

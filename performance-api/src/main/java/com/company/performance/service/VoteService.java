@@ -33,19 +33,24 @@ public interface VoteService {
     Map<String, String> getMyVotes(String voterId);
 
     /**
-     * 计算并返回某员工的评分结果
+     * 计算并返回某员工的评分结果（默认当前绩效年）
      */
     VoteResultVO getResult(String employeeId);
 
     /**
-     * 获取全公司统计数据
+     * 获取全公司统计数据（year=null 表示当前绩效年）
      */
-    StatisticsVO getStatistics();
+    StatisticsVO getStatistics(Integer year);
 
     /**
-     * 获取投票详情矩阵（韩雪专属）
+     * 获取投票详情矩阵（韩雪专属，year=null 表示当前绩效年）
      */
-    VoteDetailVO getVoteDetail();
+    VoteDetailVO getVoteDetail(Integer year);
+
+    /**
+     * 获取历史绩效年份列表（韩雪专属）
+     */
+    List<Integer> getAvailableYears();
 
     /**
      * 获取某投票人的投票目标列表（排除自己和董事长）

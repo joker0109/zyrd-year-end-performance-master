@@ -706,47 +706,16 @@
             <!-- 结果页面（由 JS 动态渲染） -->
             <div id="result-content" style="display: none;"></div>
             
-            <!-- 统计页面 -->
-            <div id="stats-content" style="display: none;">
-                <div class="stat-grid">
-                    <div class="stat-card">
-                        <div class="number" id="stat-total">--</div>
-                        <div class="label">参评人数</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="number" id="stat-voted">--</div>
-                        <div class="label">已投票</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="number" id="stat-a">--</div>
-                        <div class="label">优秀(A)</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="number" id="stat-b">--</div>
-                        <div class="label">良好(B)</div>
-                    </div>
-                </div>
-                
-                <div class="vote-section">
-                    <div class="section-header">
-                        <div class="section-title">全员评分分布</div>
-                    </div>
-                    <div id="company-distribution"></div>
-                </div>
-                
-                <div class="vote-section">
-                    <div class="section-header">
-                        <div class="section-title">全员得分排名</div>
-                    </div>
-                    <div id="score-ranking" style="overflow-x: auto; -webkit-overflow-scrolling: touch;"></div>
-                </div>
-            </div>
+            <!-- 统计页面（由 JS 动态渲染，韩雪专属） -->
+            <div id="stats-content" style="display: none;"></div>
             
             <!-- 韩雪专属：投票详情页面 -->
             <div id="hanxue-vote-detail-content" style="display: none;">
+                <!-- 年份选择器（由 JS 动态渲染） -->
+                <div id="year-selector-detail"></div>
                 <div class="vote-section">
                     <div class="section-header">
-                        <div class="section-title">所有人投票详情</div>
+                        <div class="section-title">投票详情矩阵</div>
                     </div>
                     <div id="all-votes-detail" style="overflow-x: auto; -webkit-overflow-scrolling: touch;"></div>
                 </div>
@@ -783,8 +752,8 @@
     </div>
     
     <script src="data.js"></script>
-    <script src="api.js"></script>
-    <script src="app.js"></script>
+    <script src="api.js?v=20260420"></script>
+    <script src="app.js?v=20260420"></script>
 
     <!-- 修改密码弹窗 -->
     <div class="modal-overlay" id="change-pwd-modal">

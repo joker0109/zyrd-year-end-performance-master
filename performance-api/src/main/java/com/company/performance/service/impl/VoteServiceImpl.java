@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -35,13 +36,36 @@ public class VoteServiceImpl implements VoteService {
     );
 
     /**
-     * 获取当前活跃投票批次ID
+     * 获取当前活跃投票批次ID（绩效年 = 当前年-1）
      */
     private Long getActiveSessionId() {
+        int perfYear = LocalDate.now().getYear() - 1;
         VoteSession session = voteSessionMapper.selectOne(
-                new LambdaQueryWrapper<VoteSession>().eq(VoteSession::getStatus, 1).last("LIMIT 1")
+                new LambdaQueryWrapper<VoteSession>()
+                        .eq(VoteSession::getYear, perfYear)
+                        .eq(VoteSession::getStatus, 1)
+                        .last("LIMIT 1")
         );
         return session == null ? null : session.getId();
+    }
+
+    /**
+     * 根据绩效年份获取投票批次ID（不限 status）
+     */
+    private Long getSessionIdByYear(int year) {
+        VoteSession session = voteSessionMapper.selectOne(
+                new LambdaQueryWrapper<VoteSession>()
+                        .eq(VoteSession::getYear, year)
+                        .last("LIMIT 1")
+        );
+        return session == null ? null : session.getId();
+    }
+
+    /**
+     * 解析 year 参数：null 表示当前活跃年，非空表示指定年
+     */
+    private Long resolveSessionId(Integer year) {
+        return (year != null) ? getSessionIdByYear(year) : getActiveSessionId();
     }
 
     @Override
@@ -116,7 +140,13 @@ public class VoteServiceImpl implements VoteService {
 
     @Override
     public VoteResultVO getResult(String employeeId) {
-        Long sessionId = getActiveSessionId();
+        return getResultBySession(employeeId, getActiveSessionId());
+    }
+
+    /**
+     * 内部方法：根据 sessionId 计算某员工绩效结果
+     */
+    private VoteResultVO getResultBySession(String employeeId, Long sessionId) {
         if (sessionId == null) return null;
 
         Employee employee = employeeMapper.selectByEmployeeId(employeeId);
@@ -191,8 +221,8 @@ public class VoteServiceImpl implements VoteService {
     }
 
     @Override
-    public StatisticsVO getStatistics() {
-        Long sessionId = getActiveSessionId();
+    public StatisticsVO getStatistics(Integer year) {
+        Long sessionId = resolveSessionId(year);
         if (sessionId == null) return null;
 
         List<Employee> targets = employeeMapper.selectAllVotableEmployees();
@@ -207,7 +237,7 @@ public class VoteServiceImpl implements VoteService {
         List<StatisticsVO.ScoreRankItem> rankList = new ArrayList<>();
 
         for (Employee emp : targets) {
-            VoteResultVO result = getResult(emp.getEmployeeId());
+            VoteResultVO result = getResultBySession(emp.getEmployeeId(), sessionId);
             if (result == null || result.getTotalScore() == null || result.getTotalScore() == 0) continue;
 
             switch (result.getFinalGrade()) {
@@ -243,8 +273,8 @@ public class VoteServiceImpl implements VoteService {
     }
 
     @Override
-    public VoteDetailVO getVoteDetail() {
-        Long sessionId = getActiveSessionId();
+    public VoteDetailVO getVoteDetail(Integer year) {
+        Long sessionId = resolveSessionId(year);
         if (sessionId == null) return null;
 
         List<Employee> allParticipants = employeeMapper.selectAllVotableEmployees();
@@ -275,7 +305,7 @@ public class VoteServiceImpl implements VoteService {
         // 构建评分结果摘要
         Map<String, VoteDetailVO.ResultSummary> results = new LinkedHashMap<>();
         for (Employee emp : allParticipants) {
-            VoteResultVO result = getResult(emp.getEmployeeId());
+            VoteResultVO result = getResultBySession(emp.getEmployeeId(), sessionId);
             if (result != null) {
                 VoteDetailVO.ResultSummary summary = new VoteDetailVO.ResultSummary();
                 summary.setScore(result.getTotalScore());
@@ -291,6 +321,14 @@ public class VoteServiceImpl implements VoteService {
         vo.setVotes(votesMatrix);
         vo.setResults(results);
         return vo;
+    }
+
+    @Override
+    public List<Integer> getAvailableYears() {
+        List<VoteSession> sessions = voteSessionMapper.selectList(
+                new LambdaQueryWrapper<VoteSession>().orderByDesc(VoteSession::getYear)
+        );
+        return sessions.stream().map(VoteSession::getYear).distinct().collect(Collectors.toList());
     }
 
     @Override

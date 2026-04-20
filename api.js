@@ -108,17 +108,29 @@ async function apiGetResult(employeeId) {
 }
 
 /**
- * 获取全公司统计数据
+ * 获取全公司统计数据（韩雪支持按年查询）
+ * @param {number|null} year - 绩效年份（不传则默认当前绩效年）
  * @returns {code, message, data: StatisticsVO}
  */
-async function apiGetStatistics() {
-    return request('GET', '/vote/statistics');
+async function apiGetStatistics(year) {
+    var qs = year != null ? '?year=' + year : '';
+    return request('GET', '/vote/statistics' + qs);
 }
 
 /**
- * 获取投票详情矩阵（韩雪专属）
+ * 获取投票详情矩阵（韩雪专属，支持按年查询）
+ * @param {number|null} year - 绩效年份前不传则默认当前绩效年）
  * @returns {code, message, data: VoteDetailVO}
  */
-async function apiGetVoteDetail() {
-    return request('GET', '/vote/detail');
+async function apiGetVoteDetail(year) {
+    var qs = year != null ? '?year=' + year : '';
+    return request('GET', '/vote/detail' + qs);
+}
+
+/**
+ * 获取历史绩效年份列表（韩雪专属）
+ * @returns {code, message, data: [2025, 2024, ...]}
+ */
+async function apiGetAvailableYears() {
+    return request('GET', '/vote/years');
 }
