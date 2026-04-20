@@ -33,9 +33,9 @@ public interface VoteService {
     Map<String, String> getMyVotes(String voterId);
 
     /**
-     * 计算并返回某员工的评分结果（默认当前绩效年）
+     * 计算并返回某员工的评分结果（year=null 表示当前绩效年）
      */
-    VoteResultVO getResult(String employeeId);
+    VoteResultVO getResult(String employeeId, Integer year);
 
     /**
      * 获取全公司统计数据（year=null 表示当前绩效年）

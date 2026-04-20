@@ -139,8 +139,8 @@ public class VoteServiceImpl implements VoteService {
     }
 
     @Override
-    public VoteResultVO getResult(String employeeId) {
-        return getResultBySession(employeeId, getActiveSessionId());
+    public VoteResultVO getResult(String employeeId, Integer year) {
+        return getResultBySession(employeeId, resolveSessionId(year));
     }
 
     /**

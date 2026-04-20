@@ -124,11 +124,14 @@ async function apiSubmitVotes(voterId, votes) {
 }
 
 /**
- * 查询某员工的评分结果
+ * 查询某员工的评分结果（支持按年查询）
+ * @param {string} employeeId - 员工ID
+ * @param {number|null} year  - 绩效年份（不传则默认当前绩效年）
  * @returns {code, message, data: VoteResultVO}
  */
-async function apiGetResult(employeeId) {
-    return request('GET', `/vote/result?employeeId=${employeeId}`);
+async function apiGetResult(employeeId, year) {
+    var qs = year != null ? '&year=' + year : '';
+    return request('GET', `/vote/result?employeeId=${employeeId}${qs}`);
 }
 
 /**

@@ -36,12 +36,14 @@ public class VoteController {
     }
 
     /**
-     * 查询某员工的评分结果
+     * 查询某员工的评分结果（支持按年查询）
      * GET /api/vote/result?employeeId=E011
+     * GET /api/vote/result?employeeId=E011&year=2025
      */
     @GetMapping("/result")
-    public Result<VoteResultVO> result(@RequestParam String employeeId) {
-        VoteResultVO vo = voteService.getResult(employeeId);
+    public Result<VoteResultVO> result(@RequestParam String employeeId,
+                                       @RequestParam(required = false) Integer year) {
+        VoteResultVO vo = voteService.getResult(employeeId, year);
         if (vo == null) {
             return Result.fail("暂无评分数据");
         }

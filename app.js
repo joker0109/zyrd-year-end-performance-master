@@ -8,6 +8,8 @@ let availableYears = [];      // 可用绩效年份列表（韩雪专属）
 let currentStatsYear = null;  // 统计页当前查询年份（null=默认当前绩效年）
 let currentDetailYear = null; // 投票详情页当前查询年份（null=默认当前绩效年）
 
+let currentResultYear = null;  // 结果页当前查询年份（null=默认当前绩效年）
+
 // 初始化
 async function init() {
     // 尝试从 localStorage 恢复登录会话
@@ -133,6 +135,7 @@ async function logout() {
     availableYears = [];
     currentStatsYear = null;
     currentDetailYear = null;
+    currentResultYear = null;
     // 隐藏权限菜单
     ['nav-result', 'nav-stats', 'nav-hanxue'].forEach(id => {
         const el = document.getElementById(id);
@@ -353,14 +356,40 @@ function switchTab(tab) {
     }
 }
 
-// 渲染结果页
-async function renderResult() {
+// 渲染结果页（支持按年份查询）
+async function renderResult(year) {
+    if (year !== undefined) currentResultYear = year;
+
     const container = document.getElementById('result-content');
     container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">加载中...</div>';
 
-    const resp = await apiGetResult(currentUser.id);
+    // 加载可用年份（只加载一次）
+    if (availableYears.length === 0) {
+        const yearsResp = await apiGetAvailableYears();
+        if (yearsResp.code === 200 && yearsResp.data && yearsResp.data.length > 0) {
+            availableYears = yearsResp.data;
+            if (currentResultYear === null) currentResultYear = availableYears[0];
+        }
+    } else if (currentResultYear === null && availableYears.length > 0) {
+        currentResultYear = availableYears[0];
+    }
+
+    const resp = await apiGetResult(currentUser.id, currentResultYear);
+
+    // 年份选择器（有多个年份时显示）
+    const yearSelectorHtml = availableYears.length > 1 ? `
+        <div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:10px;padding:12px 16px;background:#f0f2ff;border-radius:8px;margin-bottom:16px;">
+            <span style="font-size:14px;color:#667eea;font-weight:600;white-space:nowrap;">&#128197; 绩效年份</span>
+            <select class="grade-select" style="width:auto;padding:6px 14px;font-size:14px;color:#333;"
+                onchange="renderResult(parseInt(this.value))">
+                ${availableYears.map(y => `<option value="${y}" ${currentResultYear === y ? 'selected' : ''}>${y}年度绩效</option>`).join('')}
+            </select>
+            <span style="font-size:13px;color:#999;">${currentResultYear ? `（${currentResultYear}年度评分结果）` : ''}</span>
+        </div>
+    ` : '';
+
     if (resp.code !== 200) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📊</div><p>${resp.message || '暂无评分数据'}</p></div>`;
+        container.innerHTML = yearSelectorHtml + `<div class="empty-state"><div class="empty-state-icon">📊</div><p>${resp.message || '暂无评分数据'}</p></div>`;
         return;
     }
 
@@ -368,7 +397,7 @@ async function renderResult() {
 
     // 若总分为 0 或结果不存在，说明结果尚未生成
     if (!result || !result.totalScore || result.totalScore === 0) {
-        container.innerHTML = `
+        container.innerHTML = yearSelectorHtml + `
             <div class="empty-state">
                 <div class="empty-state-icon">⏳</div>
                 <p style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 8px;">结果未生成</p>
@@ -382,8 +411,8 @@ async function renderResult() {
     const gs = result.gradeScores || {};
     const gradeName = GRADE_CONFIG[result.finalGrade] ? GRADE_CONFIG[result.finalGrade].name : result.finalGradeName;
 
-    // 重建结果页完整 HTML
-    container.innerHTML = `
+    // 重建结果页完整 HTML（年份选择器在顶部）
+    container.innerHTML = yearSelectorHtml + `
         <div class="result-score">
             <div class="score-value">${result.totalScore}</div>
             <div class="score-grade">${gradeName}(${result.finalGrade})</div>
