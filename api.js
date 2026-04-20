@@ -30,10 +30,15 @@ function fetchWithTimeout(url, options, timeout) {
  */
 async function request(method, path, data) {
     var url = API_BASE + path;
-    var options = {
-        method: method,
-        headers: { 'Content-Type': 'application/json' }
-    };
+    var headers = { 'Content-Type': 'application/json' };
+
+    // 自动注入 Token
+    var token = localStorage.getItem('token');
+    if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+    }
+
+    var options = { method: method, headers: headers };
     if (data) {
         options.body = JSON.stringify(data);
     }
@@ -41,6 +46,10 @@ async function request(method, path, data) {
     try {
         var resp = await fetchWithTimeout(url, options, 10000);
         var json = await resp.json();
+        // Token 失效时自动清除本地存储
+        if (json.code === 401) {
+            localStorage.removeItem('token');
+        }
         return json; // { code, message, data }
     } catch (e) {
         console.error('[API Error]', method, path, e);
@@ -59,6 +68,21 @@ async function request(method, path, data) {
  */
 async function apiLogin(phone, password) {
     return request('POST', '/employee/login', { phone, password });
+}
+
+/**
+ * 退出登录
+ */
+async function apiLogout() {
+    return request('POST', '/employee/logout');
+}
+
+/**
+ * 获取当前登录用户信息（页面刷新后会话恢复用）
+ * @returns {code, message, data: LoginVO}
+ */
+async function apiGetCurrentUser() {
+    return request('GET', '/employee/me');
 }
 
 /**

@@ -24,6 +24,9 @@ public class LoginVO {
     /** 是否可查看投票详情页签（韩雪专属） */
     private Boolean canViewVoteDetail;
 
+    /** 登录 Token（2小时有效期，存于 Redis） */
+    private String token;
+
     /** 是否已提交投票 */
     private Boolean isSubmitted;
     /**

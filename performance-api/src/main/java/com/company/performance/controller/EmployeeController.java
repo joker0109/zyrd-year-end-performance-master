@@ -1,5 +1,6 @@
 package com.company.performance.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.company.performance.dto.ChangePasswordDTO;
 import com.company.performance.dto.LoginDTO;
 import com.company.performance.entity.Employee;
@@ -7,8 +8,11 @@ import com.company.performance.entity.SystemAdmin;
 import com.company.performance.mapper.SystemAdminMapper;
 import com.company.performance.service.EmployeeService;
 import com.company.performance.service.VoteService;
+import com.company.performance.utils.JwtUtil;
+import com.company.performance.utils.RedisUtil;
 import com.company.performance.vo.LoginVO;
 import com.company.performance.vo.Result;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -28,6 +32,11 @@ public class EmployeeController {
     private final EmployeeService employeeService;
     private final VoteService voteService;
     private final SystemAdminMapper systemAdminMapper;
+    private final JwtUtil jwtUtil;
+    private final RedisUtil redisUtil;
+
+    /** Token 过期时间：2小时 */
+    private static final long SESSION_EXPIRE_SECONDS = 7200L;
 
     /**
      * 登录
@@ -40,7 +49,49 @@ public class EmployeeController {
             return Result.fail("手机号或密码错误");
         }
 
-        // 查询管理员配置
+        LoginVO vo = buildLoginVO(employee);
+
+        // 生成 JWT Token 并存入 Redis（2小时过期）
+        String token = jwtUtil.generateToken(employee.getEmployeeId());
+        redisUtil.setLoginSession(token, employee.getEmployeeId(), SESSION_EXPIRE_SECONDS);
+        vo.setToken(token);
+
+        return Result.ok(vo);
+    }
+
+    /**
+     * 退出登录 - 删除 Redis 中的 Session
+     * POST /api/employee/logout
+     */
+    @PostMapping("/logout")
+    public Result<Void> logout(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            redisUtil.deleteLoginSession(authHeader.substring(7));
+        }
+        return Result.ok("已退出登录", null);
+    }
+
+    /**
+     * 获取当前登录用户信息（用于页面刷新后会话恢复）
+     * GET /api/employee/me
+     */
+    @GetMapping("/me")
+    public Result<LoginVO> me(HttpServletRequest request) {
+        String employeeId = (String) request.getAttribute("currentEmployeeId");
+        Employee employee = employeeService.getOne(
+                new LambdaQueryWrapper<Employee>().eq(Employee::getEmployeeId, employeeId)
+        );
+        if (employee == null) {
+            return Result.fail("用户信息不存在");
+        }
+        return Result.ok(buildLoginVO(employee));
+    }
+
+    /**
+     * 构建 LoginVO（登录和会话恢复共用）
+     */
+    private LoginVO buildLoginVO(Employee employee) {
         SystemAdmin admin = systemAdminMapper.selectByEmployeeId(employee.getEmployeeId());
         boolean isAdmin = admin != null;
 
@@ -69,7 +120,7 @@ public class EmployeeController {
         vo.setCanViewVoteDetail(isAdmin && admin.getCanViewVoteDetail() == 1);
         vo.setIsSubmitted(submitted);
         vo.setMyVotes(myVotes);
-        return Result.ok(vo);
+        return vo;
     }
 
     /**

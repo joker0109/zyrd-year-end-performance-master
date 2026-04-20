@@ -53,7 +53,7 @@ mybatis-plus:
 # JWT配置
 jwt:
   secret: performance-evaluation-secret-key-2026
-  expiration: 86400000  # 24小时
+  expiration: 7200000  # 2小时（与Redis Session TTL保持一致）
 
 # 评分规则配置
 performance:

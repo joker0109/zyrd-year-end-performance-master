@@ -9,8 +9,19 @@ let currentStatsYear = null;  // 统计页当前查询年份（null=默认当前
 let currentDetailYear = null; // 投票详情页当前查询年份（null=默认当前绩效年）
 
 // 初始化
-function init() {
-    // 页面加载时无需初始化下拉框，改为用户名密码登录
+async function init() {
+    // 尝试从 localStorage 恢复登录会话
+    var savedToken = localStorage.getItem('token');
+    if (savedToken) {
+        var resp = await apiGetCurrentUser();
+        if (resp.code === 200 && resp.data) {
+            setupUser(resp.data);
+            return;
+        } else {
+            // Token 已过期，清除
+            localStorage.removeItem('token');
+        }
+    }
 }
 
 // 登录
@@ -35,6 +46,19 @@ async function login() {
     }
 
     const user = resp.data;
+    // 将 Token 存入 localStorage（2小时有效）
+    if (user.token) {
+        localStorage.setItem('token', user.token);
+    }
+
+    setupUser(user);
+    showToast(`欢迎，${currentUser.name}${isAdmin ? '（管理员）' : ''}`);
+}
+
+/**
+ * 设置用户信息并切换到主页（登录和会话恢复共用）
+ */
+async function setupUser(user) {
     currentUser = {
         id: user.employeeId,
         name: user.name,
@@ -65,7 +89,7 @@ async function login() {
     document.getElementById('current-user-name').textContent = currentUser.name;
     document.getElementById('current-user-avatar').textContent = currentUser.name.substring(0, 1);
 
-    // 管理员显示结果页和统计页（可查看结果且非仅董事长）
+    // 管理员显示结果页和统计页
     if (user.canViewResult) {
         document.getElementById('nav-result').style.display = 'block';
     }
@@ -93,10 +117,33 @@ async function login() {
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.5';
         submitBtn.style.background = '#27ae60';
-        showToast('您已完成投票，无法再次修改');
     }
+}
 
-    showToast(`欢迎，${currentUser.name}${isAdmin ? '（管理员）' : ''}`);
+// 退出登录
+async function logout() {
+    await apiLogout();
+    localStorage.removeItem('token');
+    // 重置全局状态
+    currentUser = null;
+    currentVotes = {};
+    isSubmitted = false;
+    isAdmin = false;
+    voteTargets = [];
+    availableYears = [];
+    currentStatsYear = null;
+    currentDetailYear = null;
+    // 隐藏权限菜单
+    ['nav-result', 'nav-stats', 'nav-hanxue'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    // 切换到登录页
+    document.getElementById('page-main').classList.remove('active');
+    document.getElementById('page-login').classList.add('active');
+    document.getElementById('login-username').value = '';
+    document.getElementById('login-password').value = '';
+    showToast('已退出登录');
 }
 
 // 渲染投票列表

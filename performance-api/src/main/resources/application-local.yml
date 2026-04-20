@@ -2,11 +2,10 @@ server:
   port: 8080
 
 spring:
-  # 禁用 Redis 和 Security 自动配置
+  # 仅禁用 Spring Security（不需要，由自定义 AuthInterceptor 负责鉴权）
+  # Redis 已启用，连接本地 localhost:6379
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
       - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
       - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
 
