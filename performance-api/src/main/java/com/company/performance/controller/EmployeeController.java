@@ -35,9 +35,9 @@ public class EmployeeController {
      */
     @PostMapping("/login")
     public Result<LoginVO> login(@Valid @RequestBody LoginDTO dto) {
-        Employee employee = employeeService.login(dto.getUsername(), dto.getPassword());
+        Employee employee = employeeService.login(dto.getPhone(), dto.getPassword());
         if (employee == null) {
-            return Result.fail("用户名或密码错误");
+            return Result.fail("手机号或密码错误");
         }
 
         // 查询管理员配置

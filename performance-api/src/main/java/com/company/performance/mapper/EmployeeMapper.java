@@ -15,6 +15,12 @@ import java.util.List;
 public interface EmployeeMapper extends BaseMapper<Employee> {
 
     /**
+     * 根据手机号查询员工
+     */
+    @Select("SELECT * FROM employees WHERE phone = #{phone} AND status = 1 AND is_deleted = 0")
+    Employee selectByPhone(@Param("phone") String phone);
+
+    /**
      * 根据用户名查询员工
      */
     @Select("SELECT * FROM employees WHERE username = #{username} AND status = 1 AND is_deleted = 0")

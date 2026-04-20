@@ -37,6 +37,11 @@ public class Employee {
     private Integer level;
 
     /**
+     * 手机号（用于登录）
+     */
+    private String phone;
+
+    /**
      * 登录用户名
      */
     private String username;

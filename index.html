@@ -620,21 +620,22 @@
                 <p>2026年度绩效评估</p>
                 
                 <div class="form-group">
-                    <label>用户名</label>
-                    <input type="text" id="login-username" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()">
+                    <label>手机号</label>
+                    <input type="tel" id="login-username" placeholder="请输入手机号" autocomplete="off" maxlength="11" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()">
                 </div>
-                
+                                
                 <div class="form-group">
                     <label>密码</label>
                     <input type="password" id="login-password" placeholder="请输入密码" onkeydown="if(event.key==='Enter')login()">
                 </div>
-                
+                                
                 <div class="login-hint">
-                    <p>演示账号：</p>
-                    <p>董事长：zhang / 123456</p>
-                    <p>经理层：wang / 123456</p>
-                    <p>中层：liu / 123456</p>
-                    <p>普通员工：jia / 123456</p>
+                    <p>演示账号（密码均为 123456）：</p>
+                    <p>董事长：13800000001</p>
+                    <p>经理层：13800000002</p>
+                    <p>中层领导：13800000005</p>
+                    <p>普通员工：13800000011</p>
+                    <p>管理员（韩雪）：13800000021</p>
                 </div>
                 
                 <button class="btn btn-primary" onclick="login()">登录</button>

@@ -15,17 +15,17 @@ function init() {
 
 // 登录
 async function login() {
-    const username = document.getElementById('login-username').value.trim();
+    const phone = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value.trim();
 
-    if (!username) { showToast('请输入用户名'); return; }
+    if (!phone) { showToast('请输入手机号'); return; }
     if (!password) { showToast('请输入密码'); return; }
 
     // 调用后端登录接口
     const loginBtn = document.querySelector('#page-login .btn-primary');
     if (loginBtn) { loginBtn.disabled = true; loginBtn.textContent = '登录中...'; }
 
-    const resp = await apiLogin(username, password);
+    const resp = await apiLogin(phone, password);
 
     if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = '登录'; }
 
@@ -635,7 +635,7 @@ async function renderHanxueVoteDetail(year) {
 // 显示演示数据
 function showDemoData() {
     // 演示数据登录
-    document.getElementById('login-username').value = 'jia';
+    document.getElementById('login-username').value = '13800000011';
     document.getElementById('login-password').value = '123456';
     login();
 }

@@ -18,8 +18,8 @@ import java.util.stream.Collectors;
 public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> implements EmployeeService {
 
     @Override
-    public Employee login(String username, String password) {
-        Employee employee = baseMapper.selectByUsername(username);
+    public Employee login(String phone, String password) {
+        Employee employee = baseMapper.selectByPhone(phone);
         if (employee == null) {
             return null;
         }

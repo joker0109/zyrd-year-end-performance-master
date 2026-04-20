@@ -54,11 +54,11 @@ async function request(method, path, data) {
 // ============ 员工相关接口 ============
 
 /**
- * 登录
+ * 登录（手机号 + 密码）
  * @returns {code, message, data: LoginVO}
  */
-async function apiLogin(username, password) {
-    return request('POST', '/employee/login', { username, password });
+async function apiLogin(phone, password) {
+    return request('POST', '/employee/login', { phone, password });
 }
 
 /**

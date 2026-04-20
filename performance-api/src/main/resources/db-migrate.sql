@@ -7,6 +7,33 @@
 ALTER TABLE employees
     ADD COLUMN IF NOT EXISTS is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除：0否 1是';
 
+-- employees 表补加 phone 字段（手机号登录，唯一）
+ALTER TABLE employees
+    ADD COLUMN phone VARCHAR(20) UNIQUE COMMENT '手机号（用于登录）';
+
+-- 为现有员工补充样本手机号（已有则不更新）
+UPDATE employees SET phone = '13800000001' WHERE employee_id = 'E001' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000002' WHERE employee_id = 'E002' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000003' WHERE employee_id = 'E003' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000004' WHERE employee_id = 'E004' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000005' WHERE employee_id = 'E005' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000006' WHERE employee_id = 'E006' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000007' WHERE employee_id = 'E007' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000008' WHERE employee_id = 'E008' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000009' WHERE employee_id = 'E009' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000010' WHERE employee_id = 'E010' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000011' WHERE employee_id = 'E011' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000012' WHERE employee_id = 'E012' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000013' WHERE employee_id = 'E013' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000014' WHERE employee_id = 'E014' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000015' WHERE employee_id = 'E015' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000016' WHERE employee_id = 'E016' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000017' WHERE employee_id = 'E017' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000018' WHERE employee_id = 'E018' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000019' WHERE employee_id = 'E019' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000020' WHERE employee_id = 'E020' AND (phone IS NULL OR phone = '');
+UPDATE employees SET phone = '13800000021' WHERE employee_id = 'E021' AND (phone IS NULL OR phone = '');
+
 -- vote_sessions 表补加 is_calculated 字段
 ALTER TABLE vote_sessions
     ADD COLUMN IF NOT EXISTS is_calculated TINYINT DEFAULT 0 COMMENT '是否已计算：0否 1是';

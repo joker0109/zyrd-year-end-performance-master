@@ -11,9 +11,9 @@ import java.util.List;
 public interface EmployeeService extends IService<Employee> {
 
     /**
-     * 用户登录
+     * 用户登录（手机号 + 密码）
      */
-    Employee login(String username, String password);
+    Employee login(String phone, String password);
 
     /**
      * 根据用户名查询员工
