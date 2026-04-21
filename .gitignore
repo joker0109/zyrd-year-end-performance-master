@@ -10,5 +10,9 @@
 # Maven编译产物
 performance-api/target/
 
+# Redis持久化文件
+dump.rdb
+performance-api/dump.rdb
+
 # Qoder内部文件
 .qoder/
