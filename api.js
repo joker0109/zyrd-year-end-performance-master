@@ -4,7 +4,7 @@
  * 支持：Chrome / Safari / 360浏览器（webkit内核模式）
  */
 
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = 'http://192.168.3.71:8080/api';
 
 /**
  * 请求超时封装（兼容所有浏览器）

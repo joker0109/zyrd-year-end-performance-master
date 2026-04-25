@@ -606,6 +606,26 @@
             font-size: 12px;
             color: #999;
         }
+
+        /* 投票详情矩阵滚动区域滚动条样式 */
+        #all-votes-detail::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        #all-votes-detail::-webkit-scrollbar-track {
+            background: #f0f0f0;
+            border-radius: 3px;
+        }
+        #all-votes-detail::-webkit-scrollbar-thumb {
+            background: #c0c0c0;
+            border-radius: 3px;
+        }
+        #all-votes-detail::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+        #all-votes-detail::-webkit-scrollbar-corner {
+            background: #f0f0f0;
+        }
     </style>
 </head>
 <body>
@@ -715,7 +735,7 @@
                     <div class="section-header">
                         <div class="section-title">投票详情矩阵</div>
                     </div>
-                    <div id="all-votes-detail" style="overflow-x: auto; -webkit-overflow-scrolling: touch;"></div>
+                    <div id="all-votes-detail" style="overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; max-height: calc(100vh - 220px); padding-bottom: 4px;"></div>
                 </div>
             </div>
         </div>

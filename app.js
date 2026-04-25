@@ -376,8 +376,8 @@ async function renderResult(year) {
 
     const resp = await apiGetResult(currentUser.id, currentResultYear);
 
-    // 年份选择器（有多个年份时显示）
-    const yearSelectorHtml = availableYears.length > 1 ? `
+    // 年份选择器（有年份数据时显示）
+    const yearSelectorHtml = availableYears.length > 0 ? `
         <div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:10px;padding:12px 16px;background:#f0f2ff;border-radius:8px;margin-bottom:16px;">
             <span style="font-size:14px;color:#667eea;font-weight:600;white-space:nowrap;">&#128197; 绩效年份</span>
             <select class="grade-select" style="width:auto;padding:6px 14px;font-size:14px;color:#333;"
@@ -668,7 +668,7 @@ async function renderHanxueVoteDetail(year) {
 
     const GRADE_DISPLAY = { A: { cls: 'badge-a', text: '优秀' }, B: { cls: 'badge-b', text: '良好' }, C: { cls: 'badge-c', text: '合格' }, D: { cls: 'badge-d', text: '不合格' } };
 
-    let html = `<table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+    let html = `<table style="width: max-content; min-width: 100%; border-collapse: collapse; font-size: 12px;">
         <thead>
             <tr style="background: #f5f5f5;">
                 <th style="padding: 10px; text-align: left; position: sticky; left: 0; background: #f5f5f5; min-width: 80px;">被投票人</th>
